@@ -10,7 +10,6 @@ import time
 
 
 def ping_host(host="8.8.8.8"):
-    """Real ping command to Google DNS"""
     try:
         param = "-n" if platform.system().lower() == "windows" else "-c"
         command = ["ping", param, "4", host]

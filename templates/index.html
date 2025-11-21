@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real WebSocket Commands</title>
+    <title>Linux WebSocket Terminal</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -36,14 +36,6 @@
             font-weight: bold;
         }
         
-        .status.error {
-            background: #f8d7da;
-        }
-        
-        .status.connecting {
-            background: #fff3cd;
-        }
-        
         .controls {
             display: flex;
             gap: 10px;
@@ -59,8 +51,6 @@
             background: #007bff;
             color: white;
             transition: background 0.3s;
-            flex: 1;
-            min-width: 120px;
         }
         
         button:hover {
@@ -77,9 +67,10 @@
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
+            font-family: 'Courier New', monospace;
         }
         
-        .logs {
+        .terminal {
             background: #1e1e1e;
             color: #00ff00;
             padding: 15px;
@@ -87,30 +78,34 @@
             height: 500px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-        
-        .log-entry {
-            margin-bottom: 8px;
-            padding: 5px;
-            border-left: 3px solid #007bff;
+            font-size: 14px;
             white-space: pre-wrap;
-            word-break: break-all;
         }
         
-        .log-error {
-            border-left-color: #dc3545;
+        .terminal-line {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+        
+        .prompt {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .command {
+            color: #ffffff;
+        }
+        
+        .output {
+            color: #00ff00;
+        }
+        
+        .error {
             color: #ff6b6b;
         }
         
-        .log-success {
-            border-left-color: #28a745;
-            color: #51cf66;
-        }
-        
-        .log-warning {
-            border-left-color: #ffc107;
-            color: #ffd43b;
+        .directory {
+            color: #87ceeb;
         }
         
         h1 {
@@ -120,260 +115,274 @@
         
         .command-buttons {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 10px;
             margin-bottom: 15px;
         }
         
-        .server-stats {
-            background: #e9ecef;
-            padding: 15px;
+        .shell-info {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 10px;
             border-radius: 5px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .stat-item {
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-weight: bold;
-            color: #495057;
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
-    <h1>🔗 Real WebSocket Commands</h1>
+    <h1>🐧 Linux WebSocket Terminal</h1>
     
     <div class="status" id="status">
-        Connecting to server...
-    </div>
-    
-    <div class="server-stats" id="serverStats">
-        <h4>📊 Server Status</h4>
-        <div id="statsContent"></div>
+        Connecting to Linux shell...
     </div>
     
     <div class="container">
         <div class="panel">
-            <h3>System Commands</h3>
+            <h3>Linux Terminal</h3>
+            
+            <div class="shell-info" id="shellInfo">
+                user@hostname:~$
+            </div>
+            
+            <div class="terminal" id="terminal">
+                Welcome to Linux WebSocket Terminal...
+                Type any Linux command in the input below.
+            </div>
+            
+            <div class="controls">
+                <input type="text" id="commandInput" placeholder="Type Linux command (ls, pwd, cat, grep, etc.)...">
+                <button onclick="sendShellCommand()">Execute</button>
+            </div>
             
             <div class="command-buttons">
-                <button onclick="sendCommand('server-status')" style="background: #28a745;">📊 Server Status</button>
-                <button onclick="sendCommand('ping')" style="background: #17a2b8;">🔄 Ping Google</button>
-                <button onclick="sendCommand('top-processes')" style="background: #ffc107;">⚡ Top Processes</button>
-                <button onclick="sendCommand('network-info')" style="background: #6f42c1;">🌐 Network Info</button>
-                <button onclick="sendCommand('disk-usage')" style="background: #fd7e14;">💾 Disk Usage</button>
-                <button onclick="sendCommand('memory-usage')" style="background: #e83e8c;">🧠 Memory Usage</button>
-                <button onclick="sendCommand('time')" style="background: #20c997;">⏰ Server Time</button>
-                <button onclick="sendCommand('help')" style="background: #6c757d;">❓ Help</button>
-            </div>
-            
-            <div class="controls">
-                <input type="text" id="customCommand" placeholder="Type custom command...">
-                <button onclick="sendCustomCommand()">Send Command</button>
-            </div>
-            
-            <div class="controls">
-                <input type="text" id="messageInput" placeholder="Type broadcast message...">
-                <button onclick="sendMessage()">Broadcast Message</button>
-            </div>
-            
-            <div class="controls">
-                <button onclick="clearLogs()" style="background: #6c757d;">Clear Logs</button>
-                <button onclick="disconnect()" style="background: #dc3545;">Disconnect</button>
-                <button onclick="connect()" style="background: #28a745;" id="connectBtn">Reconnect</button>
+                <button onclick="sendQuickCommand('pwd')">pwd</button>
+                <button onclick="sendQuickCommand('ls -la')">ls -la</button>
+                <button onclick="sendQuickCommand('whoami')">whoami</button>
+                <button onclick="sendQuickCommand('uname -a')">uname -a</button>
+                <button onclick="sendQuickCommand('ps aux')">ps aux</button>
+                <button onclick="sendQuickCommand('df -h')">df -h</button>
+                <button onclick="sendQuickCommand('free -h')">free -h</button>
+                <button onclick="sendQuickCommand('cd ~')">cd ~</button>
             </div>
         </div>
         
         <div class="panel">
-            <h3>Command Results & Logs</h3>
-            <div class="logs" id="logs"></div>
+            <h3>System Info & Tools</h3>
+            
+            <div class="command-buttons">
+                <button onclick="sendCommand('server-status')">📊 Server Status</button>
+                <button onclick="sendQuickCommand('cat /etc/os-release')">OS Info</button>
+                <button onclick="sendQuickCommand('lscpu')">CPU Info</button>
+                <button onclick="sendQuickCommand('lsblk')">Block Devices</button>
+                <button onclick="sendQuickCommand('ip addr')">Network</button>
+                <button onclick="sendQuickCommand('systemctl status')">Services</button>
+                <button onclick="sendQuickCommand('journalctl -n 10')">Logs</button>
+                <button onclick="sendQuickCommand('find /home -name \"*.txt\" | head -5')">Find Files</button>
+            </div>
+            
+            <div class="controls">
+                <input type="text" id="customCommand" placeholder="Custom system command...">
+                <button onclick="sendCustomCommand()">Run Command</button>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button onclick="clearTerminal()" style="background: #6c757d;">Clear Terminal</button>
+                <button onclick="disconnect()" style="background: #dc3545;">Disconnect</button>
+                <button onclick="connect()" style="background: #28a745;" id="connectBtn">Reconnect</button>
+            </div>
         </div>
     </div>
 
-    <!-- Socket.IO Library -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
         let socket = null;
+        let currentUser = 'user';
+        let currentHostname = 'hostname';
+        let currentDir = '~';
+        
         const statusElement = document.getElementById('status');
-        const logsElement = document.getElementById('logs');
+        const terminalElement = document.getElementById('terminal');
+        const shellInfoElement = document.getElementById('shellInfo');
         const connectBtn = document.getElementById('connectBtn');
-        const serverStats = document.getElementById('serverStats');
-        const statsContent = document.getElementById('statsContent');
+        const commandInput = document.getElementById('commandInput');
 
         function connect() {
             if (socket) {
                 socket.disconnect();
             }
 
-            updateStatus('Connecting...', 'connecting');
+            updateStatus('Connecting to Linux shell...', 'connecting');
+            clearTerminal();
+            addToTerminal('🔌 Connecting to Linux WebSocket Terminal...');
             
             socket = io('http://localhost:5000', {
                 transports: ['websocket', 'polling']
             });
 
-            // WebSocket events
             socket.on('connect', () => {
-                updateStatus('Connected to Real Command Server', 'success');
-                addLog('✅ Connected to server - Socket ID: ' + socket.id);
+                updateStatus('Connected to Linux Shell', 'success');
+                addToTerminal('✅ Connected to Linux shell');
                 connectBtn.disabled = true;
             });
 
             socket.on('disconnect', (reason) => {
                 updateStatus('Disconnected: ' + reason, 'error');
-                addLog('❌ Disconnected: ' + reason);
+                addToTerminal('❌ Disconnected: ' + reason);
                 connectBtn.disabled = false;
-                serverStats.style.display = 'none';
             });
 
             socket.on('welcome', (data) => {
-                addLog('👋 ' + data.message + ' - ' + new Date(data.timestamp).toLocaleString());
+                currentUser = data.user;
+                currentHostname = data.hostname;
+                currentDir = data.current_dir;
+                updateShellInfo();
+                addToTerminal(`👋 ${data.message}`);
+                addToTerminal(`💻 User: ${data.user}@${data.hostname}`);
+                addToTerminal(`📁 Current directory: ${data.current_dir}`);
+                addToTerminal('--- Ready for Linux commands ---');
+                showPrompt();
+            });
+
+            socket.on('shell-response', (data) => {
+                if (data.type === 'cd') {
+                    if (data.result.success) {
+                        currentDir = data.result.new_dir;
+                        updateShellInfo();
+                    }
+                    addCommandToTerminal(data.command, data.result);
+                } else {
+                    addCommandToTerminal(data.command, data.result);
+                }
+                showPrompt();
             });
 
             socket.on('server-status', (data) => {
-                displayServerStatus(data);
-                addLog('📊 Server Status Received - CPU: ' + data.cpu_percent + '%, Memory: ' + data.memory.percent + '%');
-            });
-
-            socket.on('response', (data) => {
-                if (data.command === 'ping') {
-                    addLog('🔄 Ping Result:\n' + data.result);
-                } else if (data.command === 'top-processes') {
-                    displayTopProcesses(data.result);
-                } else if (data.command === 'network-info') {
-                    displayNetworkInfo(data.result);
-                } else {
-                    addLog('📨 ' + data.command.toUpperCase() + ': ' + JSON.stringify(data.result, null, 2));
-                }
-            });
-
-            socket.on('broadcast', (data) => {
-                addLog('📢 Broadcast from ' + data.from.substring(0, 8) + '...: ' + data.message);
+                addToTerminal('📊 Server Status: ' + JSON.stringify(data, null, 2));
+                showPrompt();
             });
 
             socket.on('connect_error', (error) => {
                 updateStatus('Connection error', 'error');
-                addLog('💥 Connection Error: ' + error.message, 'error');
+                addToTerminal('💥 Connection Error: ' + error.message, 'error');
                 connectBtn.disabled = false;
             });
         }
 
-        function displayServerStatus(data) {
-            if (data.error) {
-                statsContent.innerHTML = `<div class="log-error">${data.error}</div>`;
-            } else {
-                statsContent.innerHTML = `
-                    <div class="stat-item"><span class="stat-label">CPU Usage:</span> ${data.cpu_percent}%</div>
-                    <div class="stat-item"><span class="stat-label">Memory:</span> ${data.memory.used}GB / ${data.memory.total}GB (${data.memory.percent}%)</div>
-                    <div class="stat-item"><span class="stat-label">Disk:</span> ${data.disk.used}GB / ${data.disk.total}GB (${data.disk.percent}%)</div>
-                    <div class="stat-item"><span class="stat-label">Uptime:</span> ${data.uptime_hours} hours</div>
-                    <div class="stat-item"><span class="stat-label">Processes:</span> ${data.processes}</div>
-                `;
+        function sendShellCommand() {
+            const command = commandInput.value.trim();
+            if (command && socket && socket.connected) {
+                addToTerminal(`${getPrompt()} ${command}`);
+                socket.emit('shell', command);
+                commandInput.value = '';
             }
-            serverStats.style.display = 'block';
         }
 
-        function displayTopProcesses(processes) {
-            if (processes.length > 0 && processes[0].error) {
-                addLog('❌ ' + processes[0].error, 'error');
-                return;
+        function sendQuickCommand(command) {
+            if (socket && socket.connected) {
+                addToTerminal(`${getPrompt()} ${command}`);
+                socket.emit('shell', command);
             }
-            
-            let processList = '⚡ Top Processes by CPU:\n';
-            processes.forEach((proc, index) => {
-                processList += `${index + 1}. PID: ${proc.pid} | ${proc.name} | CPU: ${proc.cpu_percent}% | Memory: ${proc.memory_percent?.toFixed(2) || '0'}%\n`;
-            });
-            addLog(processList);
-        }
-
-        function displayNetworkInfo(netInfo) {
-            if (netInfo.error) {
-                addLog('❌ ' + netInfo.error, 'error');
-                return;
-            }
-            
-            const info = `🌐 Network Statistics:
-📤 Bytes Sent: ${(netInfo.bytes_sent / 1024 / 1024).toFixed(2)} MB
-📥 Bytes Received: ${(netInfo.bytes_recv / 1024 / 1024).toFixed(2)} MB
-📤 Packets Sent: ${netInfo.packets_sent}
-📥 Packets Received: ${netInfo.packets_recv}`;
-            addLog(info);
         }
 
         function sendCommand(command) {
             if (socket && socket.connected) {
                 socket.emit('command', command);
-                addLog('📤 Sending command: ' + command);
-            } else {
-                addLog('⚠️ Not connected to server', 'error');
             }
         }
 
         function sendCustomCommand() {
             const command = document.getElementById('customCommand').value.trim();
             if (command) {
-                sendCommand(command);
+                sendQuickCommand(command);
                 document.getElementById('customCommand').value = '';
             }
         }
 
-        function sendMessage() {
-            const message = document.getElementById('messageInput').value.trim();
-            if (message && socket && socket.connected) {
-                socket.emit('message', message);
-                addLog('📤 Broadcast message: ' + message);
-                document.getElementById('messageInput').value = '';
+        function addCommandToTerminal(command, result) {
+            if (result.success) {
+                if (result.output) {
+                    addToTerminal(result.output, 'output');
+                }
+            } else {
+                addToTerminal(`Error: ${result.error}`, 'error');
             }
+            
+            // Show return code if not zero
+            if (result.returncode !== 0 && result.returncode !== -1) {
+                addToTerminal(`Return code: ${result.returncode}`, 'error');
+            }
+        }
+
+        function addToTerminal(text, type = 'normal') {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            
+            if (type === 'output') {
+                line.style.color = '#00ff00';
+            } else if (type === 'error') {
+                line.style.color = '#ff6b6b';
+            } else if (type === 'directory') {
+                line.style.color = '#87ceeb';
+            }
+            
+            line.textContent = text;
+            terminalElement.appendChild(line);
+            terminalElement.scrollTop = terminalElement.scrollHeight;
+        }
+
+        function showPrompt() {
+            // Prompt is now shown in the shell info bar
+        }
+
+        function getPrompt() {
+            const dir = currentDir.split('/').pop() || '/';
+            return `[${currentUser}@${currentHostname} ${dir}]$`;
+        }
+
+        function updateShellInfo() {
+            const dir = currentDir.split('/').pop() || '/';
+            shellInfoElement.textContent = `${currentUser}@${currentHostname}:${dir}$`;
+        }
+
+        function clearTerminal() {
+            terminalElement.innerHTML = '';
+            addToTerminal('Terminal cleared. Ready for commands.');
+            showPrompt();
         }
 
         function disconnect() {
             if (socket) {
                 socket.disconnect();
-                addLog('🔌 Manually disconnected');
-                serverStats.style.display = 'none';
+                addToTerminal('🔌 Manually disconnected');
             }
-        }
-
-        function clearLogs() {
-            logsElement.innerHTML = '';
-            addLog('🧹 Logs cleared');
         }
 
         function updateStatus(message, type = 'info') {
             statusElement.textContent = message;
-            statusElement.className = 'status ' + (type === 'success' ? '' : 
-                                              type === 'error' ? 'error' : 
-                                              type === 'connecting' ? 'connecting' : '');
-        }
-
-        function addLog(message, type = 'info') {
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry ${type === 'error' ? 'log-error' : 
-                                 type === 'success' ? 'log-success' : 
-                                 type === 'warning' ? 'log-warning' : ''}`;
-            
-            const timestamp = new Date().toLocaleTimeString();
-            logEntry.textContent = `[${timestamp}] ${message}`;
-            logsElement.appendChild(logEntry);
-            logsElement.scrollTop = logsElement.scrollHeight;
+            statusElement.style.background = type === 'success' ? '#e8f5e8' : 
+                                           type === 'error' ? '#f8d7da' : 
+                                           type === 'connecting' ? '#fff3cd' : '#e2e3e5';
         }
 
         // Auto-connect when page loads
         document.addEventListener('DOMContentLoaded', connect);
 
         // Enable sending with Enter key
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendShellCommand();
+        });
+
         document.getElementById('customCommand').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') sendCustomCommand();
         });
 
-        document.getElementById('messageInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') sendMessage();
-        });
+        // Focus on command input
+        commandInput.focus();
 
-        // Expose functions for browser console
-        window.sendCommand = sendCommand;
+        // Expose for console testing
+        window.sendShellCommand = sendShellCommand;
         window.socket = socket;
     </script>
 </body>
