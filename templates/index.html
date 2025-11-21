@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Demo</title>
+    <title>Real WebSocket Commands</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -59,6 +59,8 @@
             background: #007bff;
             color: white;
             transition: background 0.3s;
+            flex: 1;
+            min-width: 120px;
         }
         
         button:hover {
@@ -82,10 +84,10 @@
             color: #00ff00;
             padding: 15px;
             border-radius: 5px;
-            height: 400px;
+            height: 500px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-size: 12px;
         }
         
         .log-entry {
@@ -118,38 +120,64 @@
         
         .command-buttons {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px;
             margin-bottom: 15px;
+        }
+        
+        .server-stats {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .stat-item {
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #495057;
         }
     </style>
 </head>
 <body>
-    <h1>🔗 WebSocket Demo with Flask</h1>
+    <h1>🔗 Real WebSocket Commands</h1>
     
     <div class="status" id="status">
         Connecting to server...
     </div>
     
+    <div class="server-stats" id="serverStats">
+        <h4>📊 Server Status</h4>
+        <div id="statsContent"></div>
+    </div>
+    
     <div class="container">
         <div class="panel">
-            <h3>Controls</h3>
+            <h3>System Commands</h3>
             
             <div class="command-buttons">
-                <button onclick="sendCommand('server-status')">Server Status</button>
-                <button onclick="sendCommand('time')">Server Time</button>
-                <button onclick="sendCommand('ping')">Ping</button>
-                <button onclick="sendCommand('help')">Help</button>
+                <button onclick="sendCommand('server-status')" style="background: #28a745;">📊 Server Status</button>
+                <button onclick="sendCommand('ping')" style="background: #17a2b8;">🔄 Ping Google</button>
+                <button onclick="sendCommand('top-processes')" style="background: #ffc107;">⚡ Top Processes</button>
+                <button onclick="sendCommand('network-info')" style="background: #6f42c1;">🌐 Network Info</button>
+                <button onclick="sendCommand('disk-usage')" style="background: #fd7e14;">💾 Disk Usage</button>
+                <button onclick="sendCommand('memory-usage')" style="background: #e83e8c;">🧠 Memory Usage</button>
+                <button onclick="sendCommand('time')" style="background: #20c997;">⏰ Server Time</button>
+                <button onclick="sendCommand('help')" style="background: #6c757d;">❓ Help</button>
             </div>
             
             <div class="controls">
-                <input type="text" id="customCommand" placeholder="Custom command...">
+                <input type="text" id="customCommand" placeholder="Type custom command...">
                 <button onclick="sendCustomCommand()">Send Command</button>
             </div>
             
             <div class="controls">
-                <input type="text" id="messageInput" placeholder="Custom message...">
-                <button onclick="sendMessage()">Send Message</button>
+                <input type="text" id="messageInput" placeholder="Type broadcast message...">
+                <button onclick="sendMessage()">Broadcast Message</button>
             </div>
             
             <div class="controls">
@@ -160,7 +188,7 @@
         </div>
         
         <div class="panel">
-            <h3>Event Logs</h3>
+            <h3>Command Results & Logs</h3>
             <div class="logs" id="logs"></div>
         </div>
     </div>
@@ -172,23 +200,23 @@
         const statusElement = document.getElementById('status');
         const logsElement = document.getElementById('logs');
         const connectBtn = document.getElementById('connectBtn');
+        const serverStats = document.getElementById('serverStats');
+        const statsContent = document.getElementById('statsContent');
 
         function connect() {
-            // Disconnect previous connection if exists
             if (socket) {
                 socket.disconnect();
             }
 
             updateStatus('Connecting...', 'connecting');
             
-            // New connection to Flask server
             socket = io('http://localhost:5000', {
                 transports: ['websocket', 'polling']
             });
 
             // WebSocket events
             socket.on('connect', () => {
-                updateStatus('Connected to Flask server', 'success');
+                updateStatus('Connected to Real Command Server', 'success');
                 addLog('✅ Connected to server - Socket ID: ' + socket.id);
                 connectBtn.disabled = true;
             });
@@ -197,6 +225,7 @@
                 updateStatus('Disconnected: ' + reason, 'error');
                 addLog('❌ Disconnected: ' + reason);
                 connectBtn.disabled = false;
+                serverStats.style.display = 'none';
             });
 
             socket.on('welcome', (data) => {
@@ -204,15 +233,24 @@
             });
 
             socket.on('server-status', (data) => {
-                addLog('📊 Server Status: ' + data.msg + ' - Time: ' + new Date(data.timestamp).toLocaleString());
+                displayServerStatus(data);
+                addLog('📊 Server Status Received - CPU: ' + data.cpu_percent + '%, Memory: ' + data.memory.percent + '%');
             });
 
             socket.on('response', (data) => {
-                addLog('📨 Response: ' + JSON.stringify(data, null, 2));
+                if (data.command === 'ping') {
+                    addLog('🔄 Ping Result:\n' + data.result);
+                } else if (data.command === 'top-processes') {
+                    displayTopProcesses(data.result);
+                } else if (data.command === 'network-info') {
+                    displayNetworkInfo(data.result);
+                } else {
+                    addLog('📨 ' + data.command.toUpperCase() + ': ' + JSON.stringify(data.result, null, 2));
+                }
             });
 
             socket.on('broadcast', (data) => {
-                addLog('📢 Broadcast from ' + data.from.substring(0, 8) + '...: ' + data.message + ' - ' + new Date(data.timestamp).toLocaleString());
+                addLog('📢 Broadcast from ' + data.from.substring(0, 8) + '...: ' + data.message);
             });
 
             socket.on('connect_error', (error) => {
@@ -222,10 +260,52 @@
             });
         }
 
+        function displayServerStatus(data) {
+            if (data.error) {
+                statsContent.innerHTML = `<div class="log-error">${data.error}</div>`;
+            } else {
+                statsContent.innerHTML = `
+                    <div class="stat-item"><span class="stat-label">CPU Usage:</span> ${data.cpu_percent}%</div>
+                    <div class="stat-item"><span class="stat-label">Memory:</span> ${data.memory.used}GB / ${data.memory.total}GB (${data.memory.percent}%)</div>
+                    <div class="stat-item"><span class="stat-label">Disk:</span> ${data.disk.used}GB / ${data.disk.total}GB (${data.disk.percent}%)</div>
+                    <div class="stat-item"><span class="stat-label">Uptime:</span> ${data.uptime_hours} hours</div>
+                    <div class="stat-item"><span class="stat-label">Processes:</span> ${data.processes}</div>
+                `;
+            }
+            serverStats.style.display = 'block';
+        }
+
+        function displayTopProcesses(processes) {
+            if (processes.length > 0 && processes[0].error) {
+                addLog('❌ ' + processes[0].error, 'error');
+                return;
+            }
+            
+            let processList = '⚡ Top Processes by CPU:\n';
+            processes.forEach((proc, index) => {
+                processList += `${index + 1}. PID: ${proc.pid} | ${proc.name} | CPU: ${proc.cpu_percent}% | Memory: ${proc.memory_percent?.toFixed(2) || '0'}%\n`;
+            });
+            addLog(processList);
+        }
+
+        function displayNetworkInfo(netInfo) {
+            if (netInfo.error) {
+                addLog('❌ ' + netInfo.error, 'error');
+                return;
+            }
+            
+            const info = `🌐 Network Statistics:
+📤 Bytes Sent: ${(netInfo.bytes_sent / 1024 / 1024).toFixed(2)} MB
+📥 Bytes Received: ${(netInfo.bytes_recv / 1024 / 1024).toFixed(2)} MB
+📤 Packets Sent: ${netInfo.packets_sent}
+📥 Packets Received: ${netInfo.packets_recv}`;
+            addLog(info);
+        }
+
         function sendCommand(command) {
             if (socket && socket.connected) {
                 socket.emit('command', command);
-                addLog('📤 Sent command: ' + command);
+                addLog('📤 Sending command: ' + command);
             } else {
                 addLog('⚠️ Not connected to server', 'error');
             }
@@ -243,7 +323,7 @@
             const message = document.getElementById('messageInput').value.trim();
             if (message && socket && socket.connected) {
                 socket.emit('message', message);
-                addLog('📤 Sent message: ' + message);
+                addLog('📤 Broadcast message: ' + message);
                 document.getElementById('messageInput').value = '';
             }
         }
@@ -252,6 +332,7 @@
             if (socket) {
                 socket.disconnect();
                 addLog('🔌 Manually disconnected');
+                serverStats.style.display = 'none';
             }
         }
 
@@ -291,7 +372,7 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        // Expose functions for browser console testing
+        // Expose functions for browser console
         window.sendCommand = sendCommand;
         window.socket = socket;
     </script>
