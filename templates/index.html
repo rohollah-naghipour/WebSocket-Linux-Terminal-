@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .status {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+        }
+        
+        .status.connecting {
+            background: #fff3cd;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .logs {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #007bff;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .log-error {
+            border-left-color: #dc3545;
+            color: #ff6b6b;
+        }
+        
+        .log-success {
+            border-left-color: #28a745;
+            color: #51cf66;
+        }
+        
+        .log-warning {
+            border-left-color: #ffc107;
+            color: #ffd43b;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        .command-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 WebSocket Demo with Flask</h1>
+    
+    <div class="status" id="status">
+        Connecting to server...
+    </div>
+    
+    <div class="container">
+        <div class="panel">
+            <h3>Controls</h3>
+            
+            <div class="command-buttons">
+                <button onclick="sendCommand('server-status')">Server Status</button>
+                <button onclick="sendCommand('time')">Server Time</button>
+                <button onclick="sendCommand('ping')">Ping</button>
+                <button onclick="sendCommand('help')">Help</button>
+            </div>
+            
+            <div class="controls">
+                <input type="text" id="customCommand" placeholder="Custom command...">
+                <button onclick="sendCustomCommand()">Send Command</button>
+            </div>
+            
+            <div class="controls">
+                <input type="text" id="messageInput" placeholder="Custom message...">
+                <button onclick="sendMessage()">Send Message</button>
+            </div>
+            
+            <div class="controls">
+                <button onclick="clearLogs()" style="background: #6c757d;">Clear Logs</button>
+                <button onclick="disconnect()" style="background: #dc3545;">Disconnect</button>
+                <button onclick="connect()" style="background: #28a745;" id="connectBtn">Reconnect</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h3>Event Logs</h3>
+            <div class="logs" id="logs"></div>
+        </div>
+    </div>
+
+    <!-- Socket.IO Library -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        const statusElement = document.getElementById('status');
+        const logsElement = document.getElementById('logs');
+        const connectBtn = document.getElementById('connectBtn');
+
+        function connect() {
+            // Disconnect previous connection if exists
+            if (socket) {
+                socket.disconnect();
+            }
+
+            updateStatus('Connecting...', 'connecting');
+            
+            // New connection to Flask server
+            socket = io('http://localhost:5000', {
+                transports: ['websocket', 'polling']
+            });
+
+            // WebSocket events
+            socket.on('connect', () => {
+                updateStatus('Connected to Flask server', 'success');
+                addLog('✅ Connected to server - Socket ID: ' + socket.id);
+                connectBtn.disabled = true;
+            });
+
+            socket.on('disconnect', (reason) => {
+                updateStatus('Disconnected: ' + reason, 'error');
+                addLog('❌ Disconnected: ' + reason);
+                connectBtn.disabled = false;
+            });
+
+            socket.on('welcome', (data) => {
+                addLog('👋 ' + data.message + ' - ' + new Date(data.timestamp).toLocaleString());
+            });
+
+            socket.on('server-status', (data) => {
+                addLog('📊 Server Status: ' + data.msg + ' - Time: ' + new Date(data.timestamp).toLocaleString());
+            });
+
+            socket.on('response', (data) => {
+                addLog('📨 Response: ' + JSON.stringify(data, null, 2));
+            });
+
+            socket.on('broadcast', (data) => {
+                addLog('📢 Broadcast from ' + data.from.substring(0, 8) + '...: ' + data.message + ' - ' + new Date(data.timestamp).toLocaleString());
+            });
+
+            socket.on('connect_error', (error) => {
+                updateStatus('Connection error', 'error');
+                addLog('💥 Connection Error: ' + error.message, 'error');
+                connectBtn.disabled = false;
+            });
+        }
+
+        function sendCommand(command) {
+            if (socket && socket.connected) {
+                socket.emit('command', command);
+                addLog('📤 Sent command: ' + command);
+            } else {
+                addLog('⚠️ Not connected to server', 'error');
+            }
+        }
+
+        function sendCustomCommand() {
+            const command = document.getElementById('customCommand').value.trim();
+            if (command) {
+                sendCommand(command);
+                document.getElementById('customCommand').value = '';
+            }
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value.trim();
+            if (message && socket && socket.connected) {
+                socket.emit('message', message);
+                addLog('📤 Sent message: ' + message);
+                document.getElementById('messageInput').value = '';
+            }
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                addLog('🔌 Manually disconnected');
+            }
+        }
+
+        function clearLogs() {
+            logsElement.innerHTML = '';
+            addLog('🧹 Logs cleared');
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + (type === 'success' ? '' : 
+                                              type === 'error' ? 'error' : 
+                                              type === 'connecting' ? 'connecting' : '');
+        }
+
+        function addLog(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type === 'error' ? 'log-error' : 
+                                 type === 'success' ? 'log-success' : 
+                                 type === 'warning' ? 'log-warning' : ''}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logsElement.appendChild(logEntry);
+            logsElement.scrollTop = logsElement.scrollHeight;
+        }
+
+        // Auto-connect when page loads
+        document.addEventListener('DOMContentLoaded', connect);
+
+        // Enable sending with Enter key
+        document.getElementById('customCommand').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendCustomCommand();
+        });
+
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Expose functions for browser console testing
+        window.sendCommand = sendCommand;
+        window.socket = socket;
+    </script>
+</body>
+</html>
